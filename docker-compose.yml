@@ -1,0 +1,32 @@
+services:
+  mcp-server:
+    build: ./backend
+    command: python -m mcp_server.server
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+      - MCP_URL=http://mcp-server:8001/sse
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    depends_on:
+      - mcp-server
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

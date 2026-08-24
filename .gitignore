@@ -1,0 +1,15 @@
+# 密钥与本地文件
+backend/.env
+data/*.db
+outputs/*
+!outputs/.gitkeep
+__pycache__/
+*.pyc
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
