@@ -23,13 +23,38 @@ from .mcp_client import MCPClient
 DB_PATH = PROJECT_ROOT / "data" / "worklog.db"
 
 
+def _run_seed():
+    """重新生成最近 14 天演示数据（等价于手动执行 python seed_data.py）。"""
+    seed_path = PROJECT_ROOT / "seed_data.py"
+    spec = importlib.util.spec_from_file_location("seed_data", seed_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.main()  # 注意: 模块内 main() 受 __name__ == "__main__" 保护，必须显式调用
+
+
 def ensure_demo_db():
-    """若演示数据库不存在，自动生成（方便首次运行直接体验）。"""
+    """确保演示数据库可用：
+    1. 不存在时自动生成（方便首次运行直接体验）；
+    2. 数据过期（最新记录不是今天）时自动重新播种最近 14 天数据。
+    否则日报/周报会查不到数据，导致图表为空、报告内容缺失。
+    幂等：数据已覆盖今天时不做任何事，可在启动时与每次生成前重复调用。
+    """
     if not DB_PATH.exists():
-        seed_path = PROJECT_ROOT / "seed_data.py"
-        spec = importlib.util.spec_from_file_location("seed_data", seed_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        print("[main] 未找到演示数据库，正在生成最近 14 天演示数据...")
+        _run_seed()
+        return
+    try:
+        import sqlite3
+        from datetime import date
+        conn = sqlite3.connect(DB_PATH)
+        newest = conn.execute("SELECT MAX(work_date) FROM work_log").fetchone()[0]
+        conn.close()
+        today = date.today().isoformat()
+        if newest and newest < today:
+            print(f"[main] 演示数据已过期（最新记录 {newest}，今天是 {today}），正在重新生成最近 14 天演示数据...")
+            _run_seed()
+    except Exception as e:
+        print(f"[main] 演示数据状态检查失败: {e}")
 
 
 @asynccontextmanager
@@ -110,6 +135,9 @@ async def _run_agent_stream(report_type: str, client: MCPClient, days: int, peri
 @app.get("/api/report/stream")
 async def report_stream(type: str = Query("daily", pattern="^(daily|weekly)$")):
     """SSE 流式接口: 实时推送 Agent 步骤、报告 token、最终结果。"""
+    # 每次生成前确保演示数据覆盖到今天（后端跨天运行/数据过期时自动重新播种），
+    # 避免日报/周报因查不到数据而图表为空。
+    ensure_demo_db()
     client = app.state.mcp_client
     if client is None:
         return {"error": "MCP 工具服务未连接，请先启动: cd backend && python -m mcp_server.server"}

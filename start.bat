@@ -1,21 +1,53 @@
 @echo off
-chcp 65001 >nul
+chcp 936 >nul
+setlocal
 cd /d "%~dp0"
+set "PYTHONIOENCODING=utf-8"
 
 echo ==========================================
-echo  AI Agent è‡ªåŠ¨åŒ–æ—¥æŠ¥/å‘¨æŠ¥ç”Ÿæˆå™¨ - ä¸€é”®å¯åŠ¨
+echo  AI Agent ×Ô¶¯»¯ÈÕ±¨/ÖÜ±¨Éú³ÉÆ÷ - Ò»¼üÆô¶¯
 echo ==========================================
 echo.
-echo [1/3] å¯åŠ¨ MCP å·¥å…·æœåŠ¡ (ç«¯å£ 8001) ...
-start "MCP-Server" cmd /k "cd /d %~dp0backend && python -m mcp_server.server"
 
-echo [2/3] å¯åŠ¨åŽç«¯ FastAPI (ç«¯å£ 8000) ...
-start "Backend" cmd /k "cd /d %~dp0backend && python -m app.main"
+REM Èô¶Ë¿ÚÒÑ±»Õ¼ÓÃ£¨·þÎñÒÑÔÚÔËÐÐ£©ÔòÌø¹ýÆô¶¯£¬±ÜÃâÖØ¸´´°¿Ú±¨´í
+echo [1/3] ¼ì²é MCP ¹¤¾ß·þÎñ (¶Ë¿Ú 8001) ...
+netstat -an | findstr /c:":8001" | findstr "LISTEN" >nul
+if errorlevel 1 (
+    echo       Î´ÔËÐÐ£¬ÕýÔÚÆô¶¯ ...
+    start "MCP-Server" cmd /k "cd /d ""%~dp0backend"" && set PYTHONIOENCODING=utf-8 && python -m mcp_server.server"
+) else (
+    echo       ÒÑÔÚÔËÐÐ£¬Ìø¹ýÆô¶¯
+)
 
-echo [3/3] å¯åŠ¨å‰ç«¯ Vue3 (ç«¯å£ 5173) ...
-start "Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+echo [2/3] ¼ì²éºó¶Ë FastAPI (¶Ë¿Ú 8000) ...
+netstat -an | findstr /c:":8000" | findstr "LISTEN" >nul
+if errorlevel 1 (
+    echo       Î´ÔËÐÐ£¬ÕýÔÚÆô¶¯ ...
+    start "Backend" cmd /k "cd /d ""%~dp0backend"" && set PYTHONIOENCODING=utf-8 && python -m app.main"
+) else (
+    echo       ÒÑÔÚÔËÐÐ£¬Ìø¹ýÆô¶¯
+)
+
+echo [3/3] ¼ì²éÇ°¶Ë Vue3 (¶Ë¿Ú 5173) ...
+netstat -an | findstr /c:":5173" | findstr "LISTEN" >nul
+if errorlevel 1 (
+    echo       Î´ÔËÐÐ£¬ÕýÔÚÆô¶¯ ...
+    start "Frontend" cmd /k "cd /d ""%~dp0frontend"" && npm run dev"
+) else (
+    echo       ÒÑÔÚÔËÐÐ£¬Ìø¹ýÆô¶¯
+)
 
 echo.
-echo å…¨éƒ¨å¯åŠ¨å®Œæˆï¼Œæµè§ˆå™¨è®¿é—®: http://localhost:5173
-echo å…³é—­æ—¶ç›´æŽ¥å…³é—­å¯¹åº”çª—å£å³å¯ã€‚
-timeout /t 3 >nul
+echo [4/4] µÈ´ýÇ°¶Ë¾ÍÐ÷£¬½«×Ô¶¯´ò¿ªä¯ÀÀÆ÷ ...
+set /a tries=0
+:wait_front
+netstat -an | findstr /c:":5173" | findstr "LISTEN" >nul && goto open_browser
+set /a tries+=1
+ping -n 2 127.0.0.1 >nul
+if %tries% lss 20 goto wait_front
+:open_browser
+start "" "http://localhost:5173"
+echo ÒÑ×Ô¶¯´ò¿ªä¯ÀÀÆ÷: http://localhost:5173
+echo ÈôÎ´µ¯³ö´°¿Ú£¬ÇëÊÖ¶¯·ÃÎÊÉÏÊöµØÖ·£»¹Ø±ÕÊ±Ö±½Ó¹Ø±Õ¶ÔÓ¦´°¿Ú¼´¿É¡£
+ping -n 4 127.0.0.1 >nul
+endlocal
